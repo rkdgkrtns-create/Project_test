@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로젝트 대장 입력 - G-Workspace</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sidebar: '#3b5358',
+                        'sidebar-dark': '#2d4246',
+                        gold: '#c49a45',
+                        'gold-hover': '#a8833b',
+                        bodybg: '#eef1ec'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', 'Noto Sans KR', sans-serif; background-color: #eef1ec; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        /* Glass & Shadows */
+        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01); }
+        
+        .input-field {
+            width: 100%;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            color: #334155;
+            transition: all 0.2s;
+            outline: none;
+        }
+        .input-field:focus {
+            background-color: #ffffff;
+            border-color: #c49a45;
+            box-shadow: 0 0 0 2px rgba(196, 154, 69, 0.2);
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 0.375rem;
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen p-4 sm:p-8 flex justify-center selection:bg-gold selection:text-white">
+
+    <div class="max-w-5xl w-full flex flex-col gap-6">
+        
+        <!-- Header -->
+        <header class="glass-panel rounded-[2rem] p-4 px-6 flex items-center justify-between card-shadow border border-white/50">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-sidebar flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-folder-plus text-gold text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-sidebar">프로젝트 대장 등록</h1>
+                    <p class="text-xs text-slate-500 font-medium mt-0.5">통합 관리 대장에 새로운 프로젝트를 등록합니다.</p>
+                </div>
+            </div>
+            <button class="w-9 h-9 rounded-full bg-white hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors border border-slate-200 flex items-center justify-center shadow-sm" title="돌아가기">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </header>
+
+        <!-- Form Content -->
+        <form id="projectForm" class="flex flex-col gap-6">
+            
+            <!-- 1. 기본 정보 (Basic Info) -->
+            <section class="bg-white rounded-3xl p-6 md:p-8 card-shadow border border-slate-100 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-2 h-full bg-sidebar"></div>
+                <h2 class="text-base font-bold text-sidebar mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-cube text-gold"></i> 기본 정보
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div class="md:col-span-3">
+                        <label class="form-label">프로젝트명 <span class="text-red-500">*</span></label>
+                        <input type="text" id="projectName" class="input-field" placeholder="예: 신길2천 하천정비 및 생태복원 사업" required>
+                    </div>
+                    
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="form-label !mb-0">진행 상태 <span class="text-red-500">*</span></label>
+                            <button type="button" onclick="openOptionModal('status')" class="text-slate-400 hover:text-sidebar transition-colors" title="항목 설정">
+                                <i class="fa-solid fa-gear"></i>
+                            </button>
+                        </div>
+                        <select id="statusSelect" class="input-field cursor-pointer">
+                            <!-- JS init -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="form-label !mb-0">진행 단계 <span class="text-red-500">*</span></label>
+                            <button type="button" onclick="openOptionModal('stage')" class="text-slate-400 hover:text-sidebar transition-colors" title="항목 설정">
+                                <i class="fa-solid fa-gear"></i>
+                            </button>
+                        </div>
+                        <select id="stageSelect" class="input-field cursor-pointer">
+                            <!-- JS init -->
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="form-label">전체 사업 기간 <span class="text-red-500">*</span></label>
+                        <div class="flex items-center gap-2">
+                            <input type="date" id="startDate" class="input-field !px-2" required>
+                            <span class="text-slate-400 font-bold">~</span>
+                            <input type="date" id="endDate" class="input-field !px-2" required>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-3 mt-2 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
+                        <label class="form-label mb-3 text-sidebar"><i class="fa-solid fa-location-dot text-gold mr-1"></i> 사업 위치</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-500 mb-1 block">위치</span>
+                                <input type="text" id="locGeneral" class="input-field bg-white" placeholder="예: 안양시 만안구 안양로 123">
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-500 mb-1 block">시점</span>
+                                <input type="text" id="locStart" class="input-field bg-white" placeholder="예: 석수동 10-1">
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-bold text-slate-500 mb-1 block">종점</span>
+                                <input type="text" id="locEnd" class="input-field bg-white" placeholder="예: 안양동 20-2">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. 사업 상세 내역 (Business Details) -->
+            <section class="bg-white rounded-3xl p-6 md:p-8 card-shadow border border-slate-100 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-2 h-full bg-gold"></div>
+                <h2 class="text-base font-bold text-sidebar mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-file-lines text-gold"></i> 사업 상세 내역
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                    <div class="md:col-span-2">
+                        <label class="form-label">사업 목적</label>
+                        <textarea id="purpose" class="input-field resize-none" rows="2" placeholder="프로젝트를 추진하는 근본적인 목적을 기술하세요."></textarea>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="form-label">사업 내용</label>
+                        <textarea id="content" class="input-field resize-none" rows="3" placeholder="하천정비 L=2.5km, 교량 1개소 등 전반적인 내용을 기술하세요."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="form-label">관련 근거</label>
+                        <input type="text" id="legalBasis" class="input-field" placeholder="예: 하천법 제27조, 2024년도 주요업무계획 등">
+                    </div>
+
+                    <div>
+                        <label class="form-label">위치도 (첨부 또는 URL)</label>
+                        <div class="flex gap-2">
+                            <button type="button" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-bold transition-colors shrink-0 flex items-center gap-2 border border-slate-200">
+                                <i class="fa-solid fa-upload"></i> 첨부
+                            </button>
+                            <input type="url" id="mapUrl" class="input-field" placeholder="또는 지도 URL 입력">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 사업량(규모) 동적 입력 -->
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="form-label !mb-0 text-sidebar">사업량 (규모) 세부내역</label>
+                        <button type="button" onclick="addVolumeRow()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 border border-slate-200">
+                            <i class="fa-solid fa-plus"></i> 항목 추가
+                        </button>
+                    </div>
+                    
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
+                        <div class="hidden sm:grid grid-cols-12 gap-2 bg-slate-100 p-2 text-xs font-bold text-slate-600 border-b border-slate-200 text-center">
+                            <div class="col-span-3">공정</div>
+                            <div class="col-span-3">규격</div>
+                            <div class="col-span-2">수량</div>
+                            <div class="col-span-2">단위</div>
+                            <div class="col-span-2">비고/관리</div>
+                        </div>
+                        <div id="volumeContainer" class="p-2 space-y-2">
+                            <!-- JS로 항목 추가 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. 예산 및 세부사업코드 -->
+            <section class="bg-white rounded-3xl p-6 md:p-8 card-shadow border border-slate-100 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
+                <h2 class="text-base font-bold text-sidebar mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-coins text-gold"></i> 예산 정보
+                </h2>
+
+                <div class="flex flex-col gap-5">
+                    <!-- 요약 표시 영역 -->
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <div class="text-xs font-bold text-slate-500 mb-1">총 예산</div>
+                            <div class="text-2xl font-black text-sidebar"><span id="budgetTotalDisplay">0</span> <span class="text-sm font-bold text-slate-400">천원</span></div>
+                        </div>
+                        <div class="flex-1 flex flex-wrap gap-2 justify-start sm:justify-end" id="budgetBadges">
+                            <!-- 금액이 입력된 세부 예산만 배지로 표시 -->
+                        </div>
+                        <button type="button" onclick="toggleBudgetPanel()" class="shrink-0 bg-white border border-slate-200 shadow-sm text-slate-600 hover:text-gold hover:border-gold px-4 py-2 rounded-lg text-sm font-bold transition-all">
+                            세부 예산 입력 <i class="fa-solid fa-chevron-down ml-1 text-xs"></i>
+                        </button>
+                    </div>
+
+                    <!-- 세부 예산 입력 패널 (숨김/펼침) -->
+                    <div id="budgetInputPanel" class="hidden bg-white p-5 rounded-xl border border-blue-100 shadow-inner grid grid-cols-2 md:grid-cols-5 gap-3">
+                        <div>
+                            <label class="form-label">국비</label>
+                            <input type="number" class="input-field budget-input" oninput="updateBudget()" placeholder="0" data-name="국비" data-field="bg_national">
+                        </div>
+                        <div>
+                            <label class="form-label">도비</label>
+                            <input type="number" class="input-field budget-input" oninput="updateBudget()" placeholder="0" data-name="도비" data-field="bg_provincial">
+                        </div>
+                        <div>
+                            <label class="form-label">특교</label>
+                            <input type="number" class="input-field budget-input" oninput="updateBudget()" placeholder="0" data-name="특교" data-field="bg_special_grant">
+                        </div>
+                        <div>
+                            <label class="form-label">특조</label>
+                            <input type="number" class="input-field budget-input" oninput="updateBudget()" placeholder="0" data-name="특조" data-field="bg_special_adjust">
+                        </div>
+                        <div>
+                            <label class="form-label">시비</label>
+                            <input type="number" class="input-field budget-input" oninput="updateBudget()" placeholder="0" data-name="시비" data-field="bg_municipal">
+                        </div>
+                        <div class="col-span-2 md:col-span-5 text-right text-xs text-slate-400 mt-1">* 단위: 천원</div>
+                    </div>
+
+                    <!-- 세부사업코드 입력 -->
+                    <div class="mt-2">
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="form-label !mb-0 text-sidebar">세부사업코드 (예산 데이터 연동용)</label>
+                            <button type="button" onclick="addBudgetCodeRow()" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 border border-blue-200">
+                                <i class="fa-solid fa-plus"></i> 코드 추가
+                            </button>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mb-3 bg-blue-50/50 p-2 rounded-lg border border-blue-100">
+                            <i class="fa-solid fa-circle-info text-blue-400 mr-1"></i> 재정시스템의 세부사업코드를 입력해두면 향후 수립/지출 예산 데이터를 자동으로 합산하여 불러옵니다. 중복 입력이 가능합니다.
+                        </p>
+                        <div id="budgetCodeContainer" class="space-y-2">
+                            <!-- JS로 코드 항목 추가 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. 기간별 담당자 (Assignees) -->
+            <section class="bg-white rounded-3xl p-6 md:p-8 card-shadow border border-slate-100 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-2 h-full bg-emerald-500"></div>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-base font-bold text-sidebar flex items-center gap-2">
+                        <i class="fa-solid fa-users-gear text-gold"></i> 기간/업무별 담당자 지정
+                    </h2>
+                    <button type="button" onclick="addAssigneeRow()" class="bg-sidebar hover:bg-sidebar-dark text-white px-4 py-1.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1 shadow-sm">
+                        <i class="fa-solid fa-plus"></i> 담당자 추가
+                    </button>
+                </div>
+
+                <div class="bg-slate-50/50 border border-slate-200 rounded-xl overflow-hidden">
+                    <div class="hidden sm:grid grid-cols-12 gap-2 bg-slate-100 p-3 text-xs font-bold text-slate-600 border-b border-slate-200 text-center">
+                        <div class="col-span-3">업무 구분 (예: 공사, 보상)</div>
+                        <div class="col-span-3">담당자명</div>
+                        <div class="col-span-5">담당 기간</div>
+                        <div class="col-span-1">관리</div>
+                    </div>
+                    
+                    <div id="assigneeContainer" class="p-2 space-y-2">
+                        <!-- JS로 항목 추가 -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. 추진경과 및 향후 계획 -->
+            <section class="bg-white rounded-3xl p-6 md:p-8 card-shadow border border-slate-100 relative overflow-hidden mb-6">
+                <div class="absolute top-0 left-0 w-2 h-full bg-purple-500"></div>
+                
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-base font-bold text-sidebar flex items-center gap-2">
+                        <i class="fa-solid fa-timeline text-gold"></i> 추진 경과 및 향후 계획
+                    </h2>
+                    <button type="button" onclick="addProgressRow()" class="bg-purple-50 hover:bg-purple-100 text-purple-600 px-4 py-1.5 rounded-full text-xs font-bold transition-colors flex items-center gap-1 shadow-sm border border-purple-200">
+                        <i class="fa-solid fa-plus"></i> 이력 추가
+                    </button>
+                </div>
+
+                <div class="space-y-3" id="progressContainer">
+                    <!-- JS로 항목 추가 -->
+                </div>
+            </section>
+
+            <!-- Submit Area -->
+            <div class="flex items-center justify-between glass-panel p-4 px-6 rounded-full card-shadow border border-white/50 sticky bottom-4 z-50">
+                <button type="button" id="tempSaveBtn" onclick="tempSaveForm()" class="text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors px-4 py-2">
+                    임시 저장
+                </button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="resetForm()" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-6 py-2.5 rounded-full text-sm font-bold shadow-sm transition-colors">
+                        취소
+                    </button>
+                    <button type="button" id="submitBtn" onclick="submitForm()" class="bg-gold hover:bg-gold-hover text-white px-8 py-2.5 rounded-full text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 flex items-center gap-2">
+                        <i class="fa-solid fa-check"></i> 대장 등록
+                    </button>
+                </div>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- 설정 팝업 모달 (진행 상태/단계 항목 설정) -->
+    <div id="optionModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center">
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onclick="closeOptionModal()"></div>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-sm relative z-10 p-6 animate-fade-in flex flex-col gap-4 m-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-sidebar text-base" id="optionModalTitle">항목 설정</h3>
+                <button type="button" onclick="closeOptionModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <div class="flex gap-2">
+                <input type="text" id="newOptionInput" class="input-field !py-2 text-sm" placeholder="새 항목 입력 (엔터)" onkeypress="if(event.key === 'Enter') { event.preventDefault(); addOption(); }">
+                <button type="button" onclick="addOption()" class="bg-sidebar text-white px-4 rounded-xl text-xs font-bold shrink-0 hover:bg-sidebar-dark transition-colors shadow-sm">추가</button>
+            </div>
+            
+            <ul id="optionList" class="space-y-2 max-h-48 overflow-y-auto pr-1 my-1">
+                <!-- JS로 항목 생성 -->
+            </ul>
+            
+            <div class="pt-3 border-t border-slate-100 flex justify-end">
+                <button type="button" onclick="closeOptionModal()" class="bg-gold hover:bg-gold-hover text-white px-5 py-2 rounded-xl text-sm font-bold transition-colors shadow-sm">완료</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // =========================================================
+        // Firebase 초기화 (Firestore 사용)
+        // =========================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+        import { getAnalytics, isSupported as analyticsIsSupported } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-analytics.js";
+        import {
+            getFirestore, collection, addDoc, doc, getDoc, setDoc,
+            writeBatch, serverTimestamp
+        } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDAiL9UzzzTnm79l2zxfKGNk3BZf9uxgco",
+            authDomain: "project-river-eb34c.firebaseapp.com",
+            projectId: "project-river-eb34c",
+            storageBucket: "project-river-eb34c.firebasestorage.app",
+            messagingSenderId: "622889488612",
+            appId: "1:622889488612:web:535bb08ba374c366399cf1",
+            measurementId: "G-820C7RDXWV"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        // Analytics는 일부 임베드/미리보기 환경에서 차단될 수 있어 실패해도 무시합니다.
+        analyticsIsSupported().then((ok) => { if (ok) { try { getAnalytics(app); } catch (e) { /* noop */ } } }).catch(() => {});
+
+        // =========================================================
+        // 초기 렌더링
+        // =========================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initSelectOptions();
+            addVolumeRow();
+            addBudgetCodeRow();
+            addAssigneeRow();
+            addProgressRow();
+        });
+
+        // -----------------------------------------
+        // 상태/단계 옵션 설정 (common_options 컬렉션)
+        // -----------------------------------------
+        // 문서 구조: common_options/{category}  ->  { category, options: [values...] }
+        const CATEGORY_MAP = { status: 'PROJECT_STATUS', stage: 'PROJECT_STAGE' };
+        const DEFAULT_OPTIONS = {
+            PROJECT_STATUS: ['계획중', '진행중', '보류', '완료'],
+            PROJECT_STAGE: ['계획', '설계', '보상', '공사']
+        };
+
+        let optionsState = { status: [], stage: [] };
+        let currentOptionType = ''; // 'status' 또는 'stage'
+
+        // Firestore에서 옵션 불러오기 (없으면 기본값으로 생성)
+        async function loadOptionsFromFirestore(type) {
+            const category = CATEGORY_MAP[type];
+            const ref = doc(db, 'common_options', category);
+            try {
+                const snap = await getDoc(ref);
+                if (snap.exists() && Array.isArray(snap.data().options)) {
+                    optionsState[type] = snap.data().options;
+                } else {
+                    optionsState[type] = [...DEFAULT_OPTIONS[category]];
+                    await setDoc(ref, { category, options: optionsState[type] });
+                }
+            } catch (err) {
+                console.error('옵션 로딩 실패, 기본값 사용:', err);
+                optionsState[type] = [...DEFAULT_OPTIONS[category]];
+            }
+        }
+
+        async function initSelectOptions() {
+            await Promise.all([
+                loadOptionsFromFirestore('status'),
+                loadOptionsFromFirestore('stage')
+            ]);
+            renderSelect('statusSelect', optionsState.status);
+            renderSelect('stageSelect', optionsState.stage);
+        }
+
+        function renderSelect(selectId, options) {
+            const select = document.getElementById(selectId);
+            const currentValue = select.value;
+            select.innerHTML = '';
+            options.forEach(opt => {
+                const optionEl = document.createElement('option');
+                optionEl.value = opt;
+                optionEl.textContent = opt;
+                select.appendChild(optionEl);
+            });
+            if (currentValue && options.includes(currentValue)) {
+                select.value = currentValue;
+            }
+        }
+
+        // 모달 열기
+        function openOptionModal(type) {
+            currentOptionType = type;
+            document.getElementById('optionModalTitle').innerText = type === 'status' ? '진행 상태 항목 설정' : '진행 단계 항목 설정';
+            document.getElementById('newOptionInput').value = '';
+            renderOptionList();
+            document.getElementById('optionModal').classList.remove('hidden');
+        }
+
+        // 모달 닫기
+        function closeOptionModal() {
+            document.getElementById('optionModal').classList.add('hidden');
+            renderSelect('statusSelect', optionsState.status);
+            renderSelect('stageSelect', optionsState.stage);
+        }
+
+        function renderOptionList() {
+            const list = document.getElementById('optionList');
+            list.innerHTML = '';
+            optionsState[currentOptionType].forEach((opt, index) => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center bg-slate-50 border border-slate-200 p-2.5 rounded-lg text-sm group';
+                li.innerHTML = `
+                    <span class="font-medium text-slate-700">${opt}</span>
+                    <button type="button" data-index="${index}" class="option-remove-btn text-red-400 hover:text-white hover:bg-red-500 transition-colors w-7 h-7 flex items-center justify-center rounded-md bg-white border border-slate-200 shadow-sm opacity-100 sm:opacity-50 sm:group-hover:opacity-100">
+                        <i class="fa-solid fa-minus text-xs"></i>
+                    </button>
+                `;
+                list.appendChild(li);
+            });
+            list.querySelectorAll('.option-remove-btn').forEach(btn => {
+                btn.addEventListener('click', () => removeOption(parseInt(btn.dataset.index, 10)));
+            });
+        }
+
+        // Firestore에 옵션 목록 저장
+        async function persistOptions(type) {
+            const category = CATEGORY_MAP[type];
+            await setDoc(doc(db, 'common_options', category), {
+                category,
+                options: optionsState[type]
+            });
+        }
+
+        // 항목 추가
+        async function addOption() {
+            const input = document.getElementById('newOptionInput');
+            const val = input.value.trim();
+            if (val && !optionsState[currentOptionType].includes(val)) {
+                optionsState[currentOptionType].push(val);
+                input.value = '';
+                renderOptionList();
+                try {
+                    await persistOptions(currentOptionType);
+                } catch (err) {
+                    console.error('옵션 저장 실패:', err);
+                    alert('옵션 저장 중 오류가 발생했습니다: ' + err.message);
+                }
+            }
+        }
+
+        // 항목 삭제
+        async function removeOption(index) {
+            optionsState[currentOptionType].splice(index, 1);
+            renderOptionList();
+            try {
+                await persistOptions(currentOptionType);
+            } catch (err) {
+                console.error('옵션 저장 실패:', err);
+                alert('옵션 저장 중 오류가 발생했습니다: ' + err.message);
+            }
+        }
+
+        // -----------------------------------------
+        // UI 인터랙션 (예산 패널 등)
+        // -----------------------------------------
+        function toggleBudgetPanel() {
+            const panel = document.getElementById('budgetInputPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function updateBudget() {
+            const inputs = document.querySelectorAll('.budget-input');
+            let total = 0;
+            const badgesContainer = document.getElementById('budgetBadges');
+            badgesContainer.innerHTML = '';
+
+            inputs.forEach(input => {
+                const val = parseInt(input.value) || 0;
+                total += val;
+
+                if (val > 0) {
+                    const name = input.getAttribute('data-name');
+                    const badge = document.createElement('span');
+                    badge.className = 'px-3 py-1 bg-white border border-blue-100 rounded-md text-xs font-bold text-blue-700 shadow-sm';
+                    badge.innerHTML = `${name} <span class="font-normal text-slate-500 ml-1">${val.toLocaleString()}</span>`;
+                    badgesContainer.appendChild(badge);
+                }
+            });
+
+            document.getElementById('budgetTotalDisplay').innerText = total.toLocaleString();
+
+            if (total === 0) {
+                badgesContainer.innerHTML = '<span class="text-xs text-slate-400 mt-2">입력된 예산이 없습니다.</span>';
+            }
+        }
+
+        // -----------------------------------------
+        // 동적 폼 빌더 (HTML 문자열 생성)
+        // -----------------------------------------
+
+        // 1. 사업량(규모) 행 추가
+        function addVolumeRow() {
+            const container = document.getElementById('volumeContainer');
+            const row = document.createElement('div');
+            row.className = 'grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-white p-3 sm:p-2 rounded-lg border border-slate-200 shadow-sm sm:shadow-none sm:border-transparent animate-fade-in group';
+            row.innerHTML = `
+                <div class="col-span-1 sm:col-span-3">
+                    <label class="sm:hidden text-[10px] font-bold text-slate-400 mb-1 block">공정</label>
+                    <input type="text" placeholder="예: 하천정비" class="input-field !py-2 vol-process">
+                </div>
+                <div class="col-span-1 sm:col-span-3">
+                    <label class="sm:hidden text-[10px] font-bold text-slate-400 mb-1 block">규격</label>
+                    <input type="text" placeholder="예: B=20m" class="input-field !py-2 vol-spec">
+                </div>
+                <div class="col-span-1 sm:col-span-2">
+                    <label class="sm:hidden text-[10px] font-bold text-slate-400 mb-1 block">수량</label>
+                    <input type="number" placeholder="0" class="input-field !py-2 text-right vol-qty">
+                </div>
+                <div class="col-span-1 sm:col-span-2">
+                    <label class="sm:hidden text-[10px] font-bold text-slate-400 mb-1 block">단위</label>
+                    <input type="text" placeholder="예: km" class="input-field !py-2 vol-unit">
+                </div>
+                <div class="col-span-1 sm:col-span-2 flex gap-2">
+                    <div class="flex-1">
+                        <label class="sm:hidden text-[10px] font-bold text-slate-400 mb-1 block">비고</label>
+                        <input type="text" placeholder="비고" class="input-field !py-2 vol-note">
+                    </div>
+                    <button type="button" onclick="this.closest('.animate-fade-in').remove()" class="w-9 shrink-0 rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 self-end sm:self-auto h-[38px]">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        // 2. 세부사업코드 행 추가
+        function addBudgetCodeRow() {
+            const container = document.getElementById('budgetCodeContainer');
+            const row = document.createElement('div');
+            row.className = 'flex gap-2 items-center animate-fade-in group';
+            row.innerHTML = `
+                <input type="text" placeholder="세부사업코드 입력 (예: 1234567890)" class="input-field !py-2 md:w-1/3 code-value">
+                <input type="text" placeholder="코드 설명 또는 비고 (예: 25년도 본예산)" class="input-field !py-2 flex-1 code-desc">
+                <button type="button" onclick="this.closest('.animate-fade-in').remove()" class="w-9 h-[38px] shrink-0 rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+            `;
+            container.appendChild(row);
+        }
+
+        // 3. 담당자 행 추가
+        function addAssigneeRow() {
+            const container = document.getElementById('assigneeContainer');
+            const row = document.createElement('div');
+            row.className = 'grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-white p-3 sm:p-2 rounded-lg border border-slate-200 shadow-sm sm:shadow-none sm:border-transparent animate-fade-in group';
+            row.innerHTML = `
+                <div class="col-span-1 sm:col-span-3">
+                    <label class="sm:hidden text-[10px] font-bold text-slate-400 mb-1 block">업무 구분</label>
+                    <input type="text" placeholder="예: 설계/공사" class="input-field !py-2 assignee-role">
+                </div>
+                <div class="col-span-1 sm:col-span-3">
+                    <label class="sm:hidden text-[10px] font-bold text-slate-400 mb-1 block">담당자명</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        <input type="text" placeholder="이름 입력" class="input-field !py-2 !pl-8 assignee-name">
+                    </div>
+                </div>
+                <div class="col-span-1 sm:col-span-5 flex items-center gap-1 sm:gap-2">
+                    <div class="w-full">
+                        <label class="sm:hidden text-[10px] font-bold text-slate-400 mb-1 block">시작일</label>
+                        <input type="date" class="input-field !py-2 !text-xs sm:!text-sm assignee-start">
+                    </div>
+                    <span class="text-slate-300 font-bold mt-4 sm:mt-0">~</span>
+                    <div class="w-full">
+                        <label class="sm:hidden text-[10px] font-bold text-slate-400 mb-1 block">종료일</label>
+                        <input type="date" class="input-field !py-2 !text-xs sm:!text-sm assignee-end">
+                    </div>
+                </div>
+                <div class="col-span-1 sm:col-span-1 flex justify-end sm:justify-center mt-2 sm:mt-0">
+                    <button type="button" onclick="this.closest('.animate-fade-in').remove()" class="w-9 h-[38px] rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        // 4. 추진경과 행 추가
+        function addProgressRow() {
+            const container = document.getElementById('progressContainer');
+            const rowId = 'prog_' + Math.random().toString(36).substr(2, 9);
+            const row = document.createElement('div');
+            row.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-sm animate-fade-in relative group';
+
+            row.innerHTML = `
+                <div class="absolute right-3 top-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button type="button" onclick="this.closest('.animate-fade-in').remove()" class="w-7 h-7 rounded-md bg-red-50 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center text-xs">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <!-- 날짜 영역 -->
+                    <div class="md:col-span-3">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="form-label !mb-0">일자</label>
+                            <button type="button" onclick="toggleProgressDateType('${rowId}')" data-type="single" id="btn_${rowId}" class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded hover:bg-slate-200 transition">
+                                <i class="fa-solid fa-calendar-day"></i> 시점
+                            </button>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <input type="date" class="input-field !py-1.5 text-sm progress-start">
+                            <div id="end_date_${rowId}" class="hidden flex-col gap-1">
+                                <div class="text-center text-slate-300 text-xs font-bold leading-none">~</div>
+                                <input type="date" class="input-field !py-1.5 text-sm progress-end">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 내용 영역 -->
+                    <div class="md:col-span-9 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="sm:col-span-2">
+                            <label class="form-label">내용</label>
+                            <input type="text" class="input-field !py-1.5 text-sm font-medium progress-content" placeholder="예: 실시설계 용역 착수">
+                        </div>
+                        <div>
+                            <label class="form-label">근거 / 비고</label>
+                            <input type="text" class="input-field !py-1.5 text-sm progress-basis" placeholder="예: 문서번호, 관련법령 등">
+                        </div>
+                        <div>
+                            <label class="form-label">관련 폴더/문서 링크</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-link absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                                <input type="url" class="input-field !py-1.5 !pl-8 text-sm progress-link" placeholder="URL 입력">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        // 추진경과 일자 토글 (시점/기간)
+        function toggleProgressDateType(rowId) {
+            const btn = document.getElementById('btn_' + rowId);
+            const endDateArea = document.getElementById('end_date_' + rowId);
+
+            if (btn.dataset.type === 'single') {
+                btn.dataset.type = 'range';
+                btn.innerHTML = '<i class="fa-solid fa-calendar-days"></i> 기간';
+                endDateArea.classList.remove('hidden');
+                endDateArea.classList.add('flex');
+            } else {
+                btn.dataset.type = 'single';
+                btn.innerHTML = '<i class="fa-solid fa-calendar-day"></i> 시점';
+                endDateArea.classList.add('hidden');
+                endDateArea.classList.remove('flex');
+                endDateArea.querySelector('input').value = '';
+            }
+        }
+
+        // -----------------------------------------
+        // 값 유틸
+        // -----------------------------------------
+        function val(el) { return el ? el.value.trim() : ''; }
+        function num(el) {
+            const v = el ? el.value : '';
+            if (v === '' || v === null || v === undefined) return null;
+            const n = Number(v);
+            return isNaN(n) ? null : n;
+        }
+
+        // -----------------------------------------
+        // 폼 -> Firestore 저장
+        // -----------------------------------------
+        function buildProjectPayload() {
+            const payload = {
+                name: val(document.getElementById('projectName')),
+                status: document.getElementById('statusSelect').value || null,
+                stage: document.getElementById('stageSelect').value || null,
+                start_date: val(document.getElementById('startDate')) || null,
+                end_date: val(document.getElementById('endDate')) || null,
+                loc_general: val(document.getElementById('locGeneral')) || null,
+                loc_start: val(document.getElementById('locStart')) || null,
+                loc_end: val(document.getElementById('locEnd')) || null,
+                purpose: val(document.getElementById('purpose')) || null,
+                content: val(document.getElementById('content')) || null,
+                legal_basis: val(document.getElementById('legalBasis')) || null,
+                map_url: val(document.getElementById('mapUrl')) || null,
+                updated_at: serverTimestamp()
+            };
+            document.querySelectorAll('.budget-input').forEach(input => {
+                const field = input.getAttribute('data-field');
+                if (field) payload[field] = num(input);
+            });
+            return payload;
+        }
+
+        function collectVolumeRows() {
+            const rows = [];
+            document.querySelectorAll('#volumeContainer > div').forEach(row => {
+                const process_name = val(row.querySelector('.vol-process'));
+                const specification = val(row.querySelector('.vol-spec'));
+                const quantity = num(row.querySelector('.vol-qty'));
+                const unit = val(row.querySelector('.vol-unit'));
+                const note = val(row.querySelector('.vol-note'));
+                if (process_name || specification || quantity !== null || unit || note) {
+                    rows.push({ process_name: process_name || null, specification: specification || null, quantity, unit: unit || null, note: note || null });
+                }
+            });
+            return rows;
+        }
+
+        function collectBudgetCodeRows() {
+            const rows = [];
+            document.querySelectorAll('#budgetCodeContainer > div').forEach(row => {
+                const budget_code = val(row.querySelector('.code-value'));
+                const description = val(row.querySelector('.code-desc'));
+                if (budget_code || description) {
+                    rows.push({ budget_code: budget_code || null, description: description || null });
+                }
+            });
+            return rows;
+        }
+
+        function collectAssigneeRows() {
+            const rows = [];
+            document.querySelectorAll('#assigneeContainer > div').forEach(row => {
+                const task_role = val(row.querySelector('.assignee-role'));
+                const assignee_name = val(row.querySelector('.assignee-name'));
+                const start_date = val(row.querySelector('.assignee-start'));
+                const end_date = val(row.querySelector('.assignee-end'));
+                if (task_role || assignee_name || start_date || end_date) {
+                    rows.push({ task_role: task_role || null, assignee_name: assignee_name || null, start_date: start_date || null, end_date: end_date || null });
+                }
+            });
+            return rows;
+        }
+
+        function collectProgressRows() {
+            const rows = [];
+            document.querySelectorAll('#progressContainer > div').forEach(row => {
+                const toggleBtn = row.querySelector('[id^="btn_prog_"]');
+                const date_type = toggleBtn ? toggleBtn.dataset.type : 'single';
+                const start_date = val(row.querySelector('.progress-start'));
+                const end_date = val(row.querySelector('.progress-end'));
+                const content = val(row.querySelector('.progress-content'));
+                const basis_note = val(row.querySelector('.progress-basis'));
+                const link_url = val(row.querySelector('.progress-link'));
+                if (start_date || content || basis_note || link_url) {
+                    rows.push({
+                        date_type,
+                        start_date: start_date || null,
+                        end_date: date_type === 'range' ? (end_date || null) : null,
+                        content: content || null,
+                        basis_note: basis_note || null,
+                        link_url: link_url || null,
+                        created_at: serverTimestamp()
+                    });
+                }
+            });
+            return rows;
+        }
+
+        // 신규 등록 (projects + 하위 컬렉션 일괄 저장)
+        async function submitForm() {
+            const nameEl = document.getElementById('projectName');
+            const startEl = document.getElementById('startDate');
+            const endEl = document.getElementById('endDate');
+
+            if (!val(nameEl)) { alert('프로젝트명을 입력해주세요.'); nameEl.focus(); return; }
+            if (!val(startEl) || !val(endEl)) { alert('전체 사업 기간을 입력해주세요.'); return; }
+
+            const submitBtn = document.getElementById('submitBtn');
+            const originalHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-60', 'cursor-not-allowed');
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 저장 중...';
+
+            try {
+                const projectData = { ...buildProjectPayload(), created_at: serverTimestamp() };
+                const projectRef = await addDoc(collection(db, 'projects'), projectData);
+                const projectId = projectRef.id;
+
+                const batch = writeBatch(db);
+                collectVolumeRows().forEach(v => batch.set(doc(collection(db, 'projects', projectId, 'volumes')), v));
+                collectBudgetCodeRows().forEach(c => batch.set(doc(collection(db, 'projects', projectId, 'budget_codes')), c));
+                collectAssigneeRows().forEach(a => batch.set(doc(collection(db, 'projects', projectId, 'assignees')), a));
+                collectProgressRows().forEach(p => batch.set(doc(collection(db, 'projects', projectId, 'progress')), p));
+                await batch.commit();
+
+                alert('프로젝트가 성공적으로 등록되었습니다.\n(문서 ID: ' + projectId + ')');
+                resetForm();
+            } catch (err) {
+                console.error('저장 실패:', err);
+                alert('저장 중 오류가 발생했습니다: ' + err.message + '\n\nFirestore 데이터베이스가 생성되어 있는지, 보안 규칙(Rules)이 쓰기를 허용하는지 확인해주세요.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-60', 'cursor-not-allowed');
+                submitBtn.innerHTML = originalHtml;
+            }
+        }
+
+        // 임시 저장: projects_drafts 컬렉션에 현재 입력값을 그대로 저장 (하위 컬렉션은 배열 필드로 저장)
+        async function tempSaveForm() {
+            const tempBtn = document.getElementById('tempSaveBtn');
+            const originalText = tempBtn.innerText;
+            tempBtn.disabled = true;
+            tempBtn.innerText = '저장 중...';
+            try {
+                const draft = {
+                    ...buildProjectPayload(),
+                    volumes: collectVolumeRows(),
+                    budget_codes: collectBudgetCodeRows().map(c => ({ ...c })),
+                    assignees: collectAssigneeRows(),
+                    progress: collectProgressRows().map(p => ({ ...p, created_at: null })),
+                    saved_at: serverTimestamp()
+                };
+                const ref = await addDoc(collection(db, 'project_drafts'), draft);
+                alert('임시 저장되었습니다. (임시저장 ID: ' + ref.id + ')');
+            } catch (err) {
+                console.error('임시 저장 실패:', err);
+                alert('임시 저장 중 오류가 발생했습니다: ' + err.message);
+            } finally {
+                tempBtn.disabled = false;
+                tempBtn.innerText = originalText;
+            }
+        }
+
+        // 취소 / 초기화
+        function resetForm() {
+            document.getElementById('projectForm').reset();
+            ['volumeContainer', 'budgetCodeContainer', 'assigneeContainer', 'progressContainer'].forEach(id => {
+                document.getElementById(id).innerHTML = '';
+            });
+            document.getElementById('budgetTotalDisplay').innerText = '0';
+            document.getElementById('budgetBadges').innerHTML = '';
+            addVolumeRow();
+            addBudgetCodeRow();
+            addAssigneeRow();
+            addProgressRow();
+            renderSelect('statusSelect', optionsState.status);
+            renderSelect('stageSelect', optionsState.stage);
+        }
+
+        // -----------------------------------------
+        // onclick 핸들러가 동작하도록 전역(window)에 등록
+        // (module 스크립트는 전역 스코프를 오염시키지 않으므로 명시적으로 연결)
+        // -----------------------------------------
+        window.openOptionModal = openOptionModal;
+        window.closeOptionModal = closeOptionModal;
+        window.addOption = addOption;
+        window.removeOption = removeOption;
+        window.toggleBudgetPanel = toggleBudgetPanel;
+        window.updateBudget = updateBudget;
+        window.addVolumeRow = addVolumeRow;
+        window.addBudgetCodeRow = addBudgetCodeRow;
+        window.addAssigneeRow = addAssigneeRow;
+        window.addProgressRow = addProgressRow;
+        window.toggleProgressDateType = toggleProgressDateType;
+        window.submitForm = submitForm;
+        window.tempSaveForm = tempSaveForm;
+        window.resetForm = resetForm;
+    </script>
+</body>
+</html>
