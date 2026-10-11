@@ -1532,6 +1532,15 @@ td.cmpd{background:#fdf3dc!important}td.cmpd .cmp-prev{display:block;font-size:1
 #askV{position:fixed;inset:0;z-index:95;background:rgba(15,30,29,.5);display:grid;place-items:center;padding:20px}#askV[hidden]{display:none}.ask-b{font-size:13.5px;line-height:1.6}.ask-b .field{margin-bottom:6px}
 .seed-l{margin:6px 0 10px;padding-left:18px;font-size:13px}.fp-cnt{display:flex;flex-wrap:wrap;gap:6px}.fp-cnt span{background:var(--mint-pale);border-radius:8px;padding:2px 8px;font-size:12px}.fp-cnt span.bk{background:#e6eef7}
 .ws-seg button{font-size:12px}
+/* ===== v43 ===== */
+.issue-b{display:inline-block;background:#fff1d6;color:#9a5b00;border:1px solid #f2c46b;border-radius:99px;padding:0 8px;font-size:11.5px;font-weight:800;vertical-align:2px}
+:root[data-theme="dark"] .issue-b{background:#3d2e10;color:#f2c46b;border-color:#7a5a1a}
+.wg-issue{box-shadow:inset 4px 0 0 #e08a00}tr.wg-issue td:first-child{box-shadow:inset 4px 0 0 #e08a00}
+#side2{position:fixed;top:0;bottom:0;right:min(640px,96vw);width:min(360px,92vw);background:var(--panel);box-shadow:-10px 0 30px rgba(0,0,0,.18);padding:18px;z-index:61;transform:translateX(calc(100% + min(640px,96vw)));transition:transform .28s ease;overflow:auto;border-radius:22px 0 0 22px}
+#side2.on{transform:none}.s2-h{display:flex;justify-content:space-between;align-items:center}.s2-h h2{margin:0;font-size:16px;color:var(--teal)}#side2 .field{margin-bottom:6px}
+@media (max-width:1000px){#side2{right:0;z-index:70}}
+.em2{display:grid;grid-template-columns:1fr auto 1fr 1fr;gap:6px;align-items:center}.em2 span{color:var(--muted)}.em2 [hidden]{display:none}
+#crudForm textarea[rows="6"]{min-height:140px}
 </style>
 </head>
 <body>
@@ -9589,6 +9598,143 @@ fbOnUser = async function(u){
 /* 화면을 켜 둔 채 날짜가 바뀌면: 저장하고 로그인 화면으로 */
 function dayCheck(){ if(FB.mode!=='in'||!FB.user) return; let stored=null; try{ stored=localStorage.getItem(dayKey(FB.user.uid)); }catch(e){} if(stored&&stored!==realToday()) dayExpire('날짜가 바뀌었습니다. 보안을 위해 다시 로그인하세요 (작업한 내용은 저장했습니다).'); }
 setInterval(dayCheck,60000);
+/* ============================================================
+   v43: 알림(서버 자료 · 나에게 지정된 업무) · 재작성 · 사업량 위치 · 프로젝트 일/월/년 · 하천계획 하천 선택 · 업무그룹(현안업무 · 담당자 · 협의사업)
+        · 작업 내용 · 문서 여러 프로젝트 · 협의사업 · 연락처(전화·팩스·주소 묶음, 이메일) · 민원 내용/답변 · 지도 우클릭 등록
+   ============================================================ */
+/* ---- 1. 알림: 서버 자료를 다 불러온 뒤에만 · 작업은 나에게 지정된 것만 · 일정은 내 일정만 ---- */
+const assignedToMe = t => (t.owner||t._o)===CUR_UID || (t.share_users||[]).includes(CUR_UID);
+const _notiItems43 = notiItems;
+notiItems = function(){ if(FB.ok&&FB.mode!=='demo'&&!FS.on) return [];
+  return _notiItems43().filter(x=>{ if(x.k.startsWith('t:')||x.kind==='task'&&!x.k.startsWith('pm:')) return assignedToMe(x.o||{}); if(x.k.startsWith('s:')) return !FS.on||((x.o._o||x.o.owner||CUR_UID)===CUR_UID); if(x.k.startsWith('pm:')) return !x.o||assignedToMe(x.o); return true; }); };
+const _fsStart43 = fsStart;
+fsStart = async function(){ const d=$('#notiDock'); if(d) d.remove(); await _fsStart43(); setTimeout(()=>{ try{ notiCheck(); notiBell(); }catch(e){} },500); };
+/* ---- 2. 재작성: 목록에서 연 자료를 그대로 새 입력창으로 ---- */
+function rewriteCopy(ent,row){ const E=ENT[ent], o=JSON.parse(JSON.stringify(row,(k,v)=>k.startsWith('__')?undefined:v)); [E.key,'_id','_o','_u','_t','_v','created_at','updated_at','mod_by','mod_at','photos','actions_log'].forEach(k=>{ if(k) delete o[k]; }); return o; }
+function addRewriteBtn(ent,row){ if(!row||!ENT[ent]) return; setTimeout(()=>{ const bar=document.querySelector('#drawer .act-bar'); if(!bar||bar.querySelector('[data-rw]')) return;
+  bar.insertAdjacentHTML('afterbegin',`<button type="button" class="btn" data-rw="1" title="이 내용을 그대로 담은 새 입력창을 엽니다 (원래 자료는 그대로)">📝 재작성</button>`);
+  bar.querySelector('[data-rw]').onclick=()=>{ openForm(ent,null,rewriteCopy(ent,row)); toast('내용을 그대로 담은 새 입력창입니다 · 고쳐서 등록하세요'); }; },30); }
+const _showRecord43 = showRecord; showRecord = function(ent,row,...a){ const r=_showRecord43(ent,row,...a); addRewriteBtn(ent,row); return r; };
+[['taskDrawer','task'],['enforceDrawer','enforce'],['ciDrawer','compitem']].forEach(([fn,ent])=>{ const o=window[fn]; if(typeof o!=='function') return; window[fn]=function(row,...a){ const r=o(row,...a); addRewriteBtn(ent,row); return r; }; });
+/* ---- 3a. 사업량: 위치 (점형 · 선형, 0+00 형식) ---- */
+const STA_RE = /^\d+\+\d{1,3}(\.\d+)?$/;
+const staFmt = s => { s=String(s||'').trim().replace(/\s/g,''); if(!s) return ''; if(/^\d+(\.\d+)?$/.test(s)){ const m=+s; return `${Math.floor(m/1000)}+${String(Math.round(m%1000)).padStart(3,'0')}`; } return s; };
+(function(){ const S=ENT.volume.sections[0][1]; S.push({k:'loc_type',l:'위치 형태',t:'seg',o:[['점형','점형 (한 지점)'],['선형','선형 (시점~종점)']],full:1},{k:'sta',l:'측점',ph:'0+000',showIf:['loc_type','점형'],hint:'예) 1+250 (1.25km 지점) · 숫자만 넣으면 m로 보고 바꿉니다'},{k:'sta_s',l:'시점',ph:'0+000',showIf:['loc_type','선형']},{k:'sta_e',l:'종점',ph:'0+000',showIf:['loc_type','선형']});
+  const c0=ENT.volume.check; ENT.volume.check=r=>{ const e=c0?c0(r)||{}:{}; ['sta','sta_s','sta_e'].forEach(k=>{ const v=staFmt(r[k]); if(v&&!STA_RE.test(v)) e[k]='0+000 형식으로 넣으세요 (예: 1+250)'; }); return Object.keys(e).length?e:null; };
+  const a0=ENT.volume.after; ENT.volume.after=r=>{ if(a0) a0(r); ['sta','sta_s','sta_e'].forEach(k=>{ if(r[k]) r[k]=staFmt(r[k]); }); if(r.loc_type==='점형'){ r.sta_s=r.sta_e=''; } else if(r.loc_type==='선형') r.sta=''; r.loc=r.loc_type==='점형'?(r.sta||''):r.loc_type==='선형'&&(r.sta_s||r.sta_e)?`${r.sta_s||'?'} ~ ${r.sta_e||'?'}`:''; }; })();
+const _openForm43 = openForm;
+openForm = function(ent,row,pre){ if(ent==='volume'&&!row) pre={loc_type:'점형',...(pre||{})};
+  if(ent==='project'){ const src=row||pre||{}; if(row){ row.prj_sfx=row.prj_sfx||row.prj_startdate||''; row.prj_efx=row.prj_efx||row.prj_enddate||''; } }
+  if(ent==='wgroup'&&!row) pre={issue:'N',...(pre||{})};
+  if(ent==='consult'&&row&&!row.content&&row.summary) row.content=row.summary;
+  _openForm43(ent,row,pre);
+  if(ent==='task'){ const b=$('#tfBtn'); if(b) b.remove(); const pn=$('#tfPanel'); if(pn) pn.remove(); } };
+/* ---- 3b. 프로젝트 기간: 일 · 월 · 년 중에서 ---- */
+(function(){ ENT.project.sections.forEach(sec=>{ sec[1].forEach((f,i)=>{ if(f.k==='prj_startdate') sec[1][i]={k:'prj_sfx',l:'사업 시작',t:'flexdate',req:1,hint:'일 · 월 · 년 단위 중에서 고릅니다'}; if(f.k==='prj_enddate') sec[1][i]={k:'prj_efx',l:'사업 종료',t:'flexdate',req:1}; }); });
+  const a0=ENT.project.after; ENT.project.after=r=>{ if(r.prj_sfx) r.prj_startdate=String(fxStart(r.prj_sfx)||r.prj_sfx).slice(0,7); if(r.prj_efx) r.prj_enddate=String(fxEnd(r.prj_efx)||r.prj_efx).slice(0,7); if(a0) a0(r); }; })();
+/* ---- 3c. 하천계획: 대상 하천 · 시행 프로젝트를 검색해서 여러 개 ---- */
+(function(){ fieldsOf('plan').forEach(f=>{ if(f.k==='rivers'){ f.t='msel'; f.ph='대상 하천 검색 · 여러 개'; } if(f.k==='prj'){ f.t='msel'; f.ph='시행 프로젝트 검색 · 여러 개'; } }); })();
+/* ---- 3d. 업무그룹: 현안업무 · 담당자(이력) · 협의사업 연결 ---- */
+DB.opt_lists.issue_kind = DB.opt_lists.issue_kind || ['주민과의 대화','시장 지시사항'];
+(function(){ const S=ENT.wgroup.sections[0][1]; const oi=S.findIndex(f=>f.k==='owner'); if(oi>=0) S.splice(oi,1);
+  const pi=S.findIndex(f=>f.k==='private'); S.splice(pi+1,0,{k:'issue',l:'⭐ 현안업무',t:'yn',hint:'현안업무로 표시하면 목록 필터와 지도에서 강조됩니다'},{k:'issue_kind',l:'현안 구분',t:'optsel',ok:'issue_kind',showIf:['issue','Y']});
+  const pr=S.findIndex(f=>f.k==='prj_IDs'); S.splice(pr+1,0,{k:'cs_IDs',l:'관련 협의사업 (여러 개)',t:'msel',ref:'consultref',full:1,ph:'협의사업 검색 · 여러 개'});
+  S.push({k:'staffs',l:'담당자 (이력)',t:'subtable',full:1,addL:'담당자 추가',cols:[{k:'role',l:'업무구분',t:'select',o:['총괄','주무','담당','지원','팀장','과장'],w:'90px'},{k:'name',l:'이름',t:'select',o:[]},{k:'team',l:'팀',w:'120px',ph:'비우면 자동'},{k:'start',l:'시작',t:'date',w:'140px'},{k:'end',l:'종료 (비우면 현재)',t:'date',w:'140px'}]});
+  const nm=S.find(f=>f.k==='staffs').cols.find(c=>c.k==='name'); Object.defineProperty(nm,'o',{get:()=>['',...DB.staff.map(s=>s.name)],configurable:true});
+  const a0=ENT.wgroup.after; ENT.wgroup.after=r=>{ if(!r.owner) r.owner=CUR_UID; (r.staffs||[]).forEach(s=>{ if(!s.team) s.team=(DB.staff.find(x=>x.name===s.name)||{}).company||''; }); if(r.issue!=='Y') r.issue_kind=''; if(a0) a0(r); }; })();
+const wgStaffNow = g => (g.staffs||[]).filter(s=>s.name&&!s.end);
+const WGV2 = {issue:false,kind:''};
+const _wgPage43 = PAGES['work-groups'];
+PAGES['work-groups'] = (gid) => { if(gid){ const h=_wgPage43(gid); const g=DB.wgroups.find(x=>x.id===gid); if(g) setTimeout(()=>{ const head=document.querySelector('.head h1'); if(head&&g.issue==='Y') head.insertAdjacentHTML('beforeend',` <span class="issue-b">⭐ ${esc(g.issue_kind||'현안업무')}</span>`); const sub=document.querySelector('.head .sub'); const st=wgStaffNow(g); if(sub&&st.length) sub.insertAdjacentHTML('afterend',`<p class="prj-meta"><span>담당 ${st.map(s=>`<b>${esc(s.name)}</b>${s.team?` (${esc(s.team)})`:''}`).join(', ')}</span>${(g.cs_IDs||[]).length?`<span>협의사업 ${(g.cs_IDs||[]).map(id=>esc((DB.consult.find(c=>c.no===id)||{}).title||id)).join(', ')}</span>`:''}</p>`); }); return h; }
+  const keep=DB.wgroups; if(WGV2.issue) DB.wgroups=keep.filter(g=>g.issue==='Y'&&(!WGV2.kind||g.issue_kind===WGV2.kind)); let h; try{ h=_wgPage43(); } finally { DB.wgroups=keep; }
+  const kinds=DB.opt_lists.issue_kind||[], n=keep.filter(g=>g.issue==='Y').length;
+  setTimeout(()=>{ const b=$('#wgIssue'); if(b) b.onclick=()=>{ WGV2.issue=!WGV2.issue; route(); }; const k=$('#wgIssueK'); if(k) k.onchange=()=>{ WGV2.kind=k.value; route(); };
+    document.querySelectorAll('[data-wgc]').forEach(c=>{ const g=keep.find(x=>x.id===c.dataset.wgc); if(g&&g.issue==='Y'){ c.classList.add('wg-issue'); c.querySelector('h2')?.insertAdjacentHTML('afterbegin',`<span class="issue-b">⭐ ${esc(g.issue_kind||'현안')}</span> `); } });
+    document.querySelectorAll('tr[data-wgr]').forEach(tr=>{ const g=keep.find(x=>x.id===tr.dataset.wgr); if(g&&g.issue==='Y'){ tr.classList.add('wg-issue'); tr.querySelector('td b')?.insertAdjacentHTML('beforebegin',`<span class="issue-b">⭐ ${esc(g.issue_kind||'현안')}</span> `); } }); });
+  return h.replace('<div class="head-act">',`<div class="head-act"><button type="button" class="btn sm2 ${WGV2.issue?'primary':''}" id="wgIssue" aria-pressed="${WGV2.issue}">⭐ 현안업무만 ${n}</button>${WGV2.issue?`<select class="field sm" id="wgIssueK" aria-label="현안 구분"><option value="">전체 현안</option>${kinds.map(k=>`<option ${k===WGV2.kind?'selected':''}>${esc(k)}</option>`).join('')}</select>`:''}`); };
+/* 지도: 현안업무와 연결된 프로젝트 · 민원 · 단속을 강조 */
+function issueTargets(){ const G=DB.wgroups.filter(g=>g.issue==='Y'), prj=new Set(), items=[]; G.forEach(g=>{ (g.prj_IDs||[]).forEach(p=>prj.add(p)); (g.items||[]).forEach(i=>items.push(i)); });
+  const pts=[]; DB.project.filter(p=>prj.has(p.prj_ID)&&isFinite(+p.lat)&&p.lat!==''&&p.lat!=null).forEach(p=>pts.push({lat:+p.lat,lng:+p.lng,t:p.prj_name,g:G.find(g=>(g.prj_IDs||[]).includes(p.prj_ID)),go:()=>location.hash='#/project/'+p.prj_ID}));
+  items.forEach(i=>{ const r=i.t==='complaint'?DB.complaint.find(c=>c.no===i.id):i.t==='enforce'?DB.enforce.find(e=>e.no===i.id):null; if(r&&isFinite(+r.lat)&&r.lat!==''&&r.lat!=null) pts.push({lat:+r.lat,lng:+r.lng,t:r.title||r.content||r.no,g:G.find(g=>(g.items||[]).some(x=>x.id===i.id)),go:()=>i.t==='complaint'?showRecord('complaint',r):enforceDrawer(r)}); });
+  return pts; }
+const ISSUE_SVG = s => `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#f2b630" fill-opacity=".28" stroke="#e08a00" stroke-width="3"/><circle cx="20" cy="20" r="7" fill="#e08a00"/><text x="20" y="24" text-anchor="middle" font-size="10" fill="#fff" font-weight="800">★</text></svg>`;
+const _dms43 = dashMapSpec;
+dashMapSpec = function(){ const s=_dms43(), P=issueTargets(); if(P.length) s.groups.unshift({key:'issue',label:'⭐ 현안업무',color:'#e08a00',points:P.map(p=>{ const k=ll2km(p.lat,p.lng); return {x:k.x,y:k.y,size:34,svg:ISSUE_SVG(34),label:p.t,title:`⭐ ${p.g?p.g.issue_kind||'현안업무':''} · ${p.g?p.g.name:''} · ${p.t}`,onClick:p.go}; })}); return s; };
+
+/* ---- 3e. 작업: 작업 내용 (큰 칸) ---- */
+(function(){ const S=ENT.task.sections[0][1]; if(S.some(f=>f.k==='task_content')) return; const i=S.findIndex(f=>f.k==='task_name'); S.splice(i+1,0,{k:'task_content',l:'작업 내용',t:'textarea',full:1,rows:6,ph:'무엇을 · 왜 · 어떻게 할지, 진행 경과를 적습니다'}); })();
+/* ---- 3f. 문서대장: 프로젝트 여러 개 · CSV ---- */
+(function(){ const S=ENT.document.sections[0][1], i=S.findIndex(f=>f.k==='prj_ID'); if(i>=0) S.splice(i,1,{k:'prj_IDs',l:'관련 프로젝트 (여러 개)',t:'msel',ref:'project',full:1});
+  DB.document.forEach(d=>{ if(!d.prj_IDs) d.prj_IDs=d.prj_ID?[d.prj_ID]:[]; });
+  const a0=ENT.document.after; ENT.document.after=r=>{ if(a0) a0(r); r.prj_IDs=r.prj_IDs||[]; r.prj_ID=r.prj_IDs[0]||null; }; })();
+CSV_ENT.documents='document'; CSV_NAME.document='문서대장';
+(function(){ const o=PAGES.documents; if(!o) return; PAGES.documents=(...a)=>{ const h=o(...a); setTimeout(()=>{ const ex=$('#csvEx'), im=$('#csvIm'); if(ex) ex.onclick=()=>csvExport('document'); if(im) im.onclick=()=>csvImport('document'); }); return h.includes('id="csvEx"')?h:h.replace('<div class="head-act">','<div class="head-act"><span class="seg-s csv-seg"><button type="button" id="csvEx">⬇ CSV 내보내기</button><button type="button" id="csvIm">⬆ CSV 가져오기</button></span>'); }; })();
+/* ---- 3g. 협의대장 → 협의사업 ---- */
+ENT.consult.label='협의사업'; if(ENT.consultref) ENT.consultref.label='협의사업';
+(function(){ NAV.forEach(g=>(g.children||[]).forEach(c=>{ if(c[0]==='consult') c[1]='협의사업'; }));
+  const S=ENT.consult.sections[0][1], find=k=>S.findIndex(f=>f.k===k);
+  const t=S[find('title')]; if(t){ t.l='사업명'; t.full=1; }
+  S.splice(find('title')+1,0,{k:'proponent',l:'사업자 (사업시행자)'},{k:'approver',l:'사업승인기관'},{k:'laws',l:'사업인정 법령 (여러 개)',t:'list',full:1,list:()=>[...new Set(DB.consult.flatMap(c=>c.laws||[]))]},
+    {k:'approvals',l:'사업승인 연혁 (최초 · 변경)',t:'subtable',full:1,addL:'승인 연혁 추가',cols:[{k:'kind',l:'구분',t:'select',o:['최초 승인','변경 승인','실시계획 인가','기타'],w:'120px'},{k:'date',l:'승인일',t:'date',w:'140px'},{k:'doc',l:'고시 · 문서번호',w:'150px'},{k:'note',l:'내용 · 변경 사유'}]});
+  const og=S[find('orgs')]; if(og){ og.l='협의기관'; } const ct=S[find('contacts')]; if(ct){ ct.l='상대 담당자 (여럿)'; ct.ph='협의기관 담당자 검색 · 여러 명'; }
+  const sm=find('summary'); if(sm>=0) S.splice(sm,1,{k:'content',l:'협의 내용',t:'textarea',full:1,rows:5});
+  S.push({k:'plan',l:'협의결과 이행계획',t:'subtable',full:1,addL:'이행 항목 추가',cols:[{k:'item',l:'협의 내용'},{k:'who',l:'이행주체',w:'120px'},{k:'st',l:'상태',t:'select',o:['계획','이행 중','이행 완료','해당 없음'],w:'100px'},{k:'due',l:'이행예정(완료) 시기',t:'date',w:'150px'},{k:'chk',l:'이행확인',t:'select',o:['','확인 완료','보완 필요'],w:'110px'}]});
+  const a0=ENT.consult.after; ENT.consult.after=r=>{ if(a0) a0(r); r.summary=r.content||r.summary||''; }; })();
+/* 상대 담당자: '+ 입력' → 옆에 연락처 입력 슬라이드 */
+function sideContact(){ let v=$('#side2'); if(!v){ v=document.createElement('aside'); v.id='side2'; v.setAttribute('aria-label','연락처 빠른 등록'); document.body.appendChild(v); }
+  const orgs=[...document.querySelectorAll('#ls_orgs [data-li]')].map(i=>i.value.trim()).filter(Boolean);
+  v.innerHTML=`<div class="s2-h"><h2>연락처 빠른 등록</h2><button type="button" class="icon-btn" id="s2X" aria-label="닫기">×</button></div><p class="muted" style="margin:0 0 8px;font-size:12.5px">저장하면 연락처에 등록되고 이 협의사업의 상대 담당자로 바로 들어갑니다.</p>
+    <label class="f" for="s2n">이름 *</label><input class="field" id="s2n"><label class="f" for="s2c">소속 (협의기관) *</label><input class="field" id="s2c" list="s2cl" value="${esc(orgs[0]||'')}"><datalist id="s2cl">${orgs.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
+    <label class="f" for="s2p">직책</label><input class="field" id="s2p"><label class="f" for="s2m">휴대전화</label><input class="field" id="s2m" type="tel"><label class="f" for="s2t">일반전화</label><input class="field" id="s2t" type="tel"><label class="f" for="s2e">이메일</label><input class="field" id="s2e" type="email">
+    <span class="err" id="s2Err"></span><div class="form-act"><button type="button" class="btn" id="s2C">취소</button><button type="button" class="btn primary" id="s2S">연락처 저장</button></div>`;
+  v.classList.add('on'); $('#s2n').focus(); const close=()=>v.classList.remove('on'); $('#s2X').onclick=close; $('#s2C').onclick=close;
+  $('#s2S').onclick=()=>{ const n=$('#s2n').value.trim(), c=$('#s2c').value.trim(); if(!n||!c){ $('#s2Err').textContent='이름과 소속을 넣으세요.'; return; }
+    const r={contact_ID:ENT.contact.auto(),name:n,company:c,position:$('#s2p').value.trim(),mobile:$('#s2m').value.trim(),email:$('#s2e').value.trim(),sites:$('#s2t').value.trim()?[{kind:'본사',tel:$('#s2t').value.trim(),fax:'',addr:''}]:[],prj_IDs:[]};
+    store.create('contact',r); FS.dirty=true;
+    const box=$('#ms_contacts'); if(box){ const f=fieldsOf('consult').find(x=>x.k==='contacts'), cur=[...box.querySelectorAll('input[type=checkbox]:checked')].map(i=>i.value); box.outerHTML=mselInput(f,[...cur,r.contact_ID]); }
+    close(); toast(`${n}님을 연락처에 등록하고 상대 담당자로 넣었습니다`); }; }
+document.addEventListener('click',e=>{ if(e.target.closest('#s2Open')) sideContact(); });
+const _openForm43b = openForm;
+openForm = function(ent,row,pre){ _openForm43b(ent,row,pre); const s2=$('#side2'); if(s2) s2.classList.remove('on');
+  if(ent==='consult'){ const w=$('#ms_contacts')&&$('#ms_contacts').closest('.form-grid > div'); if(w&&!w.querySelector('#s2Open')) w.querySelector('label.f, span.f')?.insertAdjacentHTML('beforeend',' <button type="button" class="btn sm2" id="s2Open" style="margin-left:6px">+ 입력</button>'); } };
+const _closeDrawer43 = closeDrawer; closeDrawer = function(...a){ const s2=$('#side2'); if(s2) s2.classList.remove('on'); return _closeDrawer43(...a); };
+/* ---- 3h. 연락처: 이메일(도메인 고르기) · 일반전화·팩스·주소를 본사/현장 묶음으로 ---- */
+const MAIL_DOM = ['naver.com','daum.net','hanmail.net','gmail.com','kakao.com','nate.com','korea.kr','gg.go.kr'];
+(function(){ const S=ENT.contact.sections[0][1]; const em=S.find(f=>f.k==='email'); if(em){ em.t='email2'; em.full=1; }
+  const mi=S.findIndex(f=>f.k==='mobile'); S.splice((em?S.indexOf(em):mi)+1,0,{k:'sites',l:'일반전화 · 팩스 · 주소 (본사 · 현장/사업소)',t:'subtable',full:1,addL:'사무실 추가',cols:[{k:'kind',l:'구분',t:'select',o:['본사','현장·사업소','기타'],w:'110px'},{k:'tel',l:'일반전화',w:'140px'},{k:'fax',l:'팩스',w:'140px'},{k:'addr',l:'주소'}]});
+  const c0=ENT.contact.check; ENT.contact.check=r=>{ const e=c0?c0(r)||{}:{}; if(r.email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email)) e.email='이메일 형식이 맞지 않습니다'; return Object.keys(e).length?e:null; }; })();
+PII.contact=['mobile','tel','email','addr','address','sites'];
+const _inputFor43 = inputFor;
+inputFor = function(f,v,ent){ if(f.t!=='email2') return _inputFor43(f,v,ent); const [loc,dom]=String(v||'').split('@'), known=MAIL_DOM.includes(dom||'');
+  return `<div class="em2"><input type="hidden" id="ff_${f.k}" value="${esc(v||'')}"><input class="field" data-em="loc" value="${esc(loc||'')}" placeholder="아이디" aria-label="이메일 아이디" autocomplete="off"><span>@</span>
+    <select class="field" data-em="sel" aria-label="이메일 도메인"><option value="">선택</option>${MAIL_DOM.map(d=>`<option ${d===dom?'selected':''}>${d}</option>`).join('')}<option value="__own" ${dom&&!known?'selected':''}>직접 입력</option></select>
+    <input class="field" data-em="own" value="${esc(dom&&!known?dom:'')}" placeholder="도메인 직접 입력" aria-label="도메인 직접 입력" ${dom&&!known?'':'hidden'}></div>`; };
+document.addEventListener('input',e=>{ const w=e.target.closest&&e.target.closest('.em2'); if(!w) return; const loc=w.querySelector('[data-em=loc]'), sel=w.querySelector('[data-em=sel]'), own=w.querySelector('[data-em=own]');
+  if(e.target===loc&&loc.value.includes('@')){ const [a,b]=loc.value.split('@'); loc.value=a; if(MAIL_DOM.includes(b)) sel.value=b; else if(b){ sel.value='__own'; own.value=b; } }
+  own.hidden=sel.value!=='__own'; const dom=sel.value==='__own'?own.value.trim():sel.value; w.querySelector('input[type=hidden]').value=loc.value.trim()&&dom?`${loc.value.trim()}@${dom}`:(loc.value.trim()?loc.value.trim():''); });
+document.addEventListener('change',e=>{ if(e.target.closest&&e.target.closest('.em2')) e.target.dispatchEvent(new Event('input',{bubbles:true})); });
+/* ---- 3i. 민원: 민원 내용 · 답변 내용 ---- */
+(function(){ const S=ENT.complaint.sections[0][1]; if(S.some(f=>f.k==='content')) return; const i=S.findIndex(f=>f.k==='applicant'); S.splice(i+1,0,{k:'content',l:'민원 내용',t:'textarea',full:1,rows:5},{k:'reply',l:'답변 내용',t:'textarea',full:1,rows:4}); })();
+PII.complaint=[...new Set([...(PII.complaint||[]),'content','reply'])];
+/* ---- 지도 오른쪽 클릭 → 민원 접수 · 단속 등록 바로 ---- */
+const _mapView43 = mapView;
+mapView = function(el,spec,note){ const pg=(location.hash.match(/^#\/([\w-]+)/)||[])[1]; const inForm=el&&el.closest&&el.closest('#drawer');
+  if(!inForm&&['complaints','enforce'].includes(pg)&&!spec.onContext){ const ent=pg==='complaints'?'complaint':'enforce';
+    spec.onContext=(x,y)=>{ const ll=km2ll(x,y), lat=+(ll.lat??ll[0]).toFixed(6), lng=+(ll.lng??ll[1]).toFixed(6);
+      openForm(ent,null,ent==='complaint'?{lat,lng,receipt:TODAY,status:'접수'}:{lat,lng,found:TODAY}); toast(`이 위치로 ${ent==='complaint'?'민원 접수':'단속 등록'} 창을 열었습니다`);
+      if(typeof revGeo==='function') revGeo(lat,lng).then(a=>{ if(a){ const f=$('#ff_addr'); if(f&&!f.value) f.value=a; } }).catch(()=>{}); };
+    if(note) setTimeout(()=>{ if(note.textContent!==undefined) note.insertAdjacentHTML?.('beforeend',' · 지도 오른쪽 클릭: 이 위치로 바로 등록'); },1500); }
+  return _mapView43(el,spec,note); };
+
+
+/* v43 보완: 작업·일정목록에 업무형식 관리 · 협의사업 옛 필수 칸 해제 · 협의 내용 */
+(function(){ ENT.consult.sections.forEach(sec=>{ const F=sec[1]; F.forEach(f=>{ if(['kind','status','req_date','dir'].includes(f.k)) f.req=0; });
+    const i=F.findIndex(f=>f.k==='summary'); if(i>=0) F.splice(i,1); });
+  const S=ENT.consult.sections[0][1]; if(!S.some(f=>f.k==='content')){ const j=S.findIndex(f=>f.k==='contacts'); S.splice(j+1,0,{k:'content',l:'협의 내용',t:'textarea',full:1,rows:5}); }
+  else { const c=S.splice(S.findIndex(f=>f.k==='content'),1)[0], j=S.findIndex(f=>f.k==='contacts'); S.splice(j+1,0,c); }
+  const pl=S.findIndex(f=>f.k==='plan'); if(pl>=0){ const x=S.splice(pl,1)[0]; S.splice(S.findIndex(f=>f.k==='content')+1,0,x); } })();
+(function(){ const o=PAGES.tasks; if(!o) return; PAGES.tasks=(...a)=>{ const h=o(...a); setTimeout(()=>{ const b=$('#tfTaskBtn'); if(b) b.onclick=()=>{ openDrawer('업무형식 관리','<div id="tfBox"></div><div class="form-act act-bar"><span class="sp"></span><button type="button" class="btn primary" onclick="closeDrawer();route();">완료</button></div>'); $('#drawer').classList.add('wide','xwide'); tfPanel($('#tfBox')); }; });
+  return h.replace('<div class="head-act">','<div class="head-act"><button type="button" class="btn sm2" id="tfTaskBtn" title="업무형식과 형식별 항목을 추가·수정합니다">⚙ 업무형식 관리</button>'); }; })();
 </script>
 </body>
 </html>
