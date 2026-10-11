@@ -7967,7 +7967,7 @@ function fillNews(nw,q){ const box=nw.querySelector('.nw-list'); getNews(q).then
     box.innerHTML=L.map(n=>`<a class="nw-it" href="${esc(n.link)}" target="_blank" rel="noopener"><b>${esc(n.title)}</b><span>${esc(n.desc.slice(0,70))}…</span><small>${ago(n.date)}</small></a>`).join('')||'<p class="empty">뉴스가 없습니다.</p>'; })
   .catch(e=>{ box.innerHTML=`<p class="hint neg">뉴스를 불러오지 못했습니다 (${esc(e.message)}).</p>`; }); }
 const _rivers32 = PAGES.rivers;
-PAGES.rivers = () => { setTimeout(()=>{ const pg=document.querySelector('.page'); if(pg) pg.classList.add('page-wide'); fillSide(); },30); return `<div class="rv-layout"><div class="rv-main">${_rivers32()}</div>${sidePanelHTML()}</div>`; };
+PAGES.rivers = () => { setTimeout(()=>{ const pg=document.querySelector('.page'); if(pg) pg.classList.add('page-wide'); },30); return `<div class="rv-layout"><div class="rv-main">${_rivers32()}</div>${sidePanelHTML()}</div>`; };
 
 /* ---- 데이터 설정: 외부 API ---- */
 const RELAY_CODE = `// Cloudflare Workers 에 붙여 넣는 중계 서버 (무료) — 키는 브라우저 설정에서 받거나 Worker 환경변수에 둘 수 있습니다
@@ -9365,7 +9365,7 @@ const safeId = s => String(s).replace(/\//g,'∕').replace(/^\.+$/,'_').slice(0,
 const bulkGroup = (t,r) => t==='audit'?String(r.at||r.time||'').slice(0,7)||'etc':['facility','mfac','river_line'].includes(t)?(r.river_ID||'etc'):(r.year||String(r.date||'').slice(0,4)||'etc');
 /* ---- 문자열 해시 (바뀐 레코드만 찾기) ---- */
 function h32(s){ let h=2166136261>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619)>>>0; } return (h>>>0).toString(36)+':'+s.length; }
-const plain = r => JSON.stringify(r,(k,v)=>k.startsWith('__')?undefined:v);
+const plain = r => JSON.stringify(r,(k,v)=>{ if(k.startsWith('__')) return undefined; if(v&&typeof v==='object'&&!Array.isArray(v)){ const o={}; Object.keys(v).sort().forEach(x=>o[x]=v[x]); return o; } return v; });
 /* ---- 암호화 (WebCrypto) ---- */
 const KEYS = {p:null,o:null,priv:null,pub:null,doc:null};
 const te=new TextEncoder(), td=new TextDecoder();
@@ -9436,7 +9436,10 @@ async function fsSync(force){ if(!FS.on||FS.busy||FS.readOnly) return; FS.busy=t
     const ss=JSON.stringify(settingsObj()), sh=h32(ss); if(sh!==FS.shash) ops.push({kind:'settings',s:ss,h:sh});
     if(!ops.length){ FS.pending=0; fsStatus(); return; }
     FS.pending=ops.length; fsStatus('saving');
-    let batch=FB.db.batch(), n=0; const done=[]; const flush=async()=>{ if(!n) return; await batch.commit(); done.splice(0).forEach(f=>f()); batch=FB.db.batch(); n=0; };
+    let batch=FB.db.batch(), n=0; const done=[], undo=[];
+    /* 보낸 버전을 먼저 기록 (서버 확인 응답이 먼저 와도 '남의 변경'으로 오해하지 않게) · 실패하면 되돌림 */
+    const snapH=()=>({doc:Object.fromEntries(Object.entries(FS.hash).map(([t,m])=>[t,new Map(m)])),b:{...FS.bhash},s:FS.shash});
+    const flush=async()=>{ if(!n) return; const before=snapH(); done.splice(0).forEach(f=>f()); try{ await batch.commit(); }catch(e){ FS.hash=before.doc; FS.bhash=before.b; FS.shash=before.s; throw e; } batch=FB.db.batch(); n=0; };
     for(const op of ops){ let ref, payload;
       if(op.kind==='set'){ const p=await encodeRec(op.t,op.r); if(p.hold){ FS.hold.add(op.t); holdMsg=p.hold; continue; } ref=FB.db.collection(op.t).doc(op.id); payload=p; if(te.encode(p.d).length>PART){ await writeDoc(ref,p); FS.hash[op.t].set(op.id,op.h); continue; } batch.set(ref,{...payload,_n:0}); done.push(()=>FS.hash[op.t].set(op.id,op.h)); }
       else if(op.kind==='del'){ batch.delete(FB.db.collection(op.t).doc(op.id)); done.push(()=>FS.hash[op.t].delete(op.id)); }
@@ -9735,6 +9738,31 @@ mapView = function(el,spec,note){ const pg=(location.hash.match(/^#\/([\w-]+)/)|
   const pl=S.findIndex(f=>f.k==='plan'); if(pl>=0){ const x=S.splice(pl,1)[0]; S.splice(S.findIndex(f=>f.k==='content')+1,0,x); } })();
 (function(){ const o=PAGES.tasks; if(!o) return; PAGES.tasks=(...a)=>{ const h=o(...a); setTimeout(()=>{ const b=$('#tfTaskBtn'); if(b) b.onclick=()=>{ openDrawer('업무형식 관리','<div id="tfBox"></div><div class="form-act act-bar"><span class="sp"></span><button type="button" class="btn primary" onclick="closeDrawer();route();">완료</button></div>'); $('#drawer').classList.add('wide','xwide'); tfPanel($('#tfBox')); }; });
   return h.replace('<div class="head-act">','<div class="head-act"><button type="button" class="btn sm2" id="tfTaskBtn" title="업무형식과 형식별 항목을 추가·수정합니다">⚙ 업무형식 관리</button>'); }; })();
+
+/* ============================================================
+   v44: 하천현황 오른쪽 정보 안정화 — 화면을 다시 그려도 칸을 그대로 유지 · 실패한 요청은 잠시 기억 · 오류 설명은 바로
+   ============================================================ */
+const SIDE = {node:null,at:0};
+const API_ERR = {};
+const _apiGet44 = apiGet;
+apiGet = async function(key,url,opt,ttl){ const e=API_ERR[key]; if(e&&Date.now()-e.t<120000) throw e.err;
+  try{ const v=await _apiGet44(key,url,opt,ttl); delete API_ERR[key]; return v; }catch(err){ API_ERR[key]={t:Date.now(),err}; throw err; } };
+/* 오류 문구는 나타나는 즉시 쉬운 설명 + 다시 시도 버튼으로 */
+function sideExplain(root){ [['#swWx','기상 정보 서버(Open-Meteo·기상청)'],['#swWl','한강홍수통제소(중계 서버)'],['#swNews','네이버 뉴스(중계 서버)']].forEach(([sel,w])=>{ const box=root.querySelector(sel+' .sw-b'); if(!box) return;
+  const neg=box.querySelector('.hint.neg:not([data-ex])'); if(neg){ const m=neg.textContent.match(/\((.*)\)/); neg.innerHTML=apiWhy({message:m?m[1]:neg.textContent},w); neg.dataset.ex='1'; if(!box.querySelector('[data-swretry]')) neg.insertAdjacentHTML('afterend',retryBtn(sel)); } }); }
+const _rivers44 = PAGES.rivers;
+PAGES.rivers = () => { const h=_rivers44(); const tmp=document.createElement('div'); tmp.innerHTML=h; const side=tmp.querySelector('.rv-side'); if(side) side.outerHTML='<aside class="rv-side" id="rvSlot" aria-label="하천 관련 실시간 정보"></aside>';
+  setTimeout(()=>{ const slot=$('#rvSlot'); if(!slot) return;
+    if(SIDE.node){ slot.replaceWith(SIDE.node); if(Date.now()-SIDE.at>10*60000){ SIDE.at=Date.now(); fillSide(); } return; }
+    const t2=document.createElement('div'); t2.innerHTML=sidePanelHTML(); SIDE.node=t2.firstElementChild; slot.replaceWith(SIDE.node); SIDE.at=Date.now(); fillSide();
+    new MutationObserver(()=>sideExplain(SIDE.node)).observe(SIDE.node,{childList:true,subtree:true}); },0);
+  return tmp.innerHTML; };
+/* 다시 시도: 기억한 실패를 지우고 그 자리에서 다시 */
+document.addEventListener('click',e=>{ if(!e.target.closest('[data-swretry]')) return; Object.keys(API_ERR).forEach(k=>delete API_ERR[k]); SIDE.at=Date.now(); },true);
+/* 화면이 켜져 있으면 10분마다 조용히 새로 고침 (깜빡임 없이 내용만) */
+setInterval(()=>{ if(SIDE.node&&document.body.contains(SIDE.node)&&Date.now()-SIDE.at>10*60000){ SIDE.at=Date.now(); Object.keys(API_CACHE).forEach(k=>delete API_CACHE[k]); fillSide(); } },60000);
+/* 예전 '3.5초 뒤 문구 바꾸기'는 끔 (바로 설명하므로) */
+fillSide = (orig=>async function(){ return _fillSide38.call(this); })(fillSide);
 </script>
 </body>
 </html>
